@@ -39,7 +39,7 @@ class Server:
 if __name__ == "__main__":
     HOST = '127.0.0.1'  # Change this to your server's IP address
     PORT = 12345  # Change this to the port you want to use
-    MODEL_PATH = r'C:\Users\Tiago Pereira\Desktop\DataSetTraining\gesture_recognition_model_with_augmentation.h5'  # Change this to the path of your hand recognition model
+    MODEL_PATH = r'C:\gesture_recognition_model_with_augmentation.h5'  # Change this to the path of your hand recognition model
 
     server = Server(HOST, PORT, MODEL_PATH)
     server.start()

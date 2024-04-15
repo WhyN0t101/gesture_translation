@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import cv2
 import pickle
 from client_socket import ClientSocket
+import threading
 
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -34,7 +35,14 @@ class App(tk.Tk):
         self.client_socket = ClientSocket()
 
         # Start sending images continuously
-        self.send_image_continuously()
+        #self.send_image_continuously()
+
+        send_thread = threading.Thread(target=self.send_image_continuously)
+        send_thread.daemon = True  # Daemonize the thread to close it when the main thread exits
+        send_thread.start()
+
+        # Start updating the camera feed
+        self.update_camera()
 
     def update_camera(self):
         ret, frame = self.cap.read()
@@ -66,6 +74,8 @@ class App(tk.Tk):
 
     def translation_mode(self):
         self.mode_var.set("Translation")
+
+
 
 if __name__ == "__main__":
     app = App()
