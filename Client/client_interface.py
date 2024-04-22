@@ -35,6 +35,9 @@ class App(tk.Tk):
         # Initialize client socket
         self.client_socket = ClientSocket()
 
+        # Lock for synchronizing access to camera_label
+        self.camera_lock = threading.Lock()
+
         # Start sending images continuously
         send_thread = threading.Thread(target=self.send_image_continuously)
         send_thread.daemon = True  # Daemonize the thread to close it when the main thread exits
@@ -55,8 +58,9 @@ class App(tk.Tk):
             img = Image.fromarray(frame_rgb)
             imgtk = ImageTk.PhotoImage(image=img)
             # Update camera label with new image
-            self.camera_label.imgtk = imgtk
-            self.camera_label.config(image=imgtk)
+            with self.camera_lock:
+                self.camera_label.imgtk = imgtk
+                self.camera_label.config(image=imgtk)
         # Repeat update at 30 fps
         self.after(33, self.update_camera)
 
@@ -69,7 +73,11 @@ class App(tk.Tk):
                 # Send size of the data first
                 self.client_socket.send(struct.pack("!I", len(encoded_frame)))
                 # Send encoded frame over socket
-                self.client_socket.send(encoded_frame)
+                try:
+                    self.client_socket.send(encoded_frame)
+                except ConnectionAbortedError as e:
+                    print("Connection aborted:", e)
+                    # Handle the error gracefully, e.g., attempt to reconnect
                 # Receive the sign from the server
                 sign = self.client_socket.recv(4096)  # Assuming the sign is sent as a string with max length 4096
                 # Process the received sign (gesture_label)
@@ -92,7 +100,11 @@ class App(tk.Tk):
         self.mode_var.set("Translation")
 
     def process_received_sign(self, sign):
-        print("Received sign:", sign)
+        if sign:  # Check if the sign is not empty
+            print("Received sign:", sign.decode())  # Decode and print the sign
+        else:
+            print("No sign recognized")  # Print a message indicating no sign was recognized
+
 
 if __name__ == "__main__":
     app = App()

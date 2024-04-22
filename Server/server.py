@@ -45,7 +45,10 @@ class Server:
                     gesture_label, processed_frame = self.hand_recognition.process_frame(frame)
 
                     # Send back the recognized gesture label
-                    conn.sendall(gesture_label.encode())
+                    if gesture_label is not None:
+                        conn.sendall(gesture_label.encode())
+                    else:
+                        conn.sendall(b'')  # Send an empty byte string or some default value
 
     def stop(self):
         self.is_running = False
