@@ -1,5 +1,4 @@
-import socket
-
+import socket 
 class ClientSocket:
     def __init__(self, server_address='127.0.0.1', server_port=12345):
         self.server_address = server_address
@@ -9,6 +8,9 @@ class ClientSocket:
 
     def send(self, data):
         self.client_socket.sendall(data)
+
+    def recv(self, bufsize):
+        return self.client_socket.recv(bufsize)
 
     def close(self):
         self.client_socket.close()

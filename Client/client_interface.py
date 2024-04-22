@@ -5,6 +5,7 @@ import cv2
 import pickle
 from client_socket import ClientSocket
 import threading
+import struct
 
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -35,14 +36,15 @@ class App(tk.Tk):
         self.client_socket = ClientSocket()
 
         # Start sending images continuously
-        #self.send_image_continuously()
-
         send_thread = threading.Thread(target=self.send_image_continuously)
         send_thread.daemon = True  # Daemonize the thread to close it when the main thread exits
         send_thread.start()
 
         # Start updating the camera feed
         self.update_camera()
+
+        # Bind the destroy event to close the socket connection
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def update_camera(self):
         ret, frame = self.cap.read()
@@ -64,10 +66,24 @@ class App(tk.Tk):
             if ret:
                 # Convert frame to bytes
                 encoded_frame = pickle.dumps(frame)
+                # Send size of the data first
+                self.client_socket.send(struct.pack("!I", len(encoded_frame)))
                 # Send encoded frame over socket
                 self.client_socket.send(encoded_frame)
+                # Receive the sign from the server
+                sign = self.client_socket.recv(4096)  # Assuming the sign is sent as a string with max length 4096
+                # Process the received sign (gesture_label)
+                self.process_received_sign(sign)
                 # Uncomment the line below if you want to add a delay between sending frames
                 # time.sleep(0.1)
+
+    def destroy(self):
+        # Close the socket connection
+        self.client_socket.close()
+        # Release the camera
+        self.cap.release()
+        # Call the superclass destroy method
+        super().destroy()
 
     def recognition_mode(self):
         self.mode_var.set("Recognition")
@@ -75,8 +91,10 @@ class App(tk.Tk):
     def translation_mode(self):
         self.mode_var.set("Translation")
 
-
+    def process_received_sign(self, sign):
+        print("Received sign:", sign)
 
 if __name__ == "__main__":
     app = App()
+    print("Client connected to the server.")
     app.mainloop()
