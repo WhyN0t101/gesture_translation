@@ -23,9 +23,17 @@ class Server:
 
         while self.is_running:
             conn, addr = self.server_socket.accept()
-            with conn:
-                print(f"Connected to {addr}")
+            print(f"Connected to {addr}")
 
+            # Handle client request in a separate thread
+            client_thread = threading.Thread(target=self.handle_client, args=(conn,))
+            client_thread.start()
+
+        self.server_socket.close()
+
+    def handle_client(self, conn):
+        with conn:
+            try:
                 while True:
                     # Receive size of the data first
                     data_size_bytes = conn.recv(4)
@@ -49,6 +57,12 @@ class Server:
                         conn.sendall(gesture_label.encode())
                     else:
                         conn.sendall(b'')  # Send an empty byte string or some default value
+
+            except ConnectionResetError:
+                print("Connection reset by peer")
+
+        conn.close()
+
 
     def stop(self):
         self.is_running = False
