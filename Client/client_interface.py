@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 import cv2
 import pickle
@@ -8,10 +8,12 @@ import threading
 import struct
 
 class App(tk.Tk):
+    """Main application class for the client-side GUI."""
+
     def __init__(self, *args, **kwargs):
+        """Initialize the application."""
         super().__init__(*args, **kwargs)
 
-        # Configure window
         self.title("Gesture Translation and Recognition")
         self.geometry("800x600")
         self.configure(bg="darkgrey")
@@ -22,18 +24,22 @@ class App(tk.Tk):
 
         # Create mode buttons
         self.mode_var = tk.StringVar(value="Recognition")
-
         self.recognition_button = ttk.Button(self, text="Recognition Mode", command=self.recognition_mode)
         self.recognition_button.place(relx=0.2, rely=0.9, anchor="center")
-
         self.translation_button = ttk.Button(self, text="Translation Mode", command=self.translation_mode)
         self.translation_button.place(relx=0.8, rely=0.9, anchor="center")
 
         # Initialize camera
         self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            messagebox.showerror("Error", "Failed to open camera.")
+            self.destroy()
 
         # Initialize client socket
         self.client_socket = ClientSocket()
+        if not self.client_socket.is_socket_open():
+            messagebox.showerror("Error", "Failed to connect to the server.")
+            self.destroy()
 
         # Lock for synchronizing access to camera_label
         self.camera_lock = threading.Lock()
@@ -50,63 +56,53 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def update_camera(self):
+        """Update the camera feed."""
         ret, frame = self.cap.read()
         if ret:
-            # Convert frame to RGB
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # Convert frame to ImageTk format
             img = Image.fromarray(frame_rgb)
             imgtk = ImageTk.PhotoImage(image=img)
-            # Update camera label with new image
             with self.camera_lock:
                 self.camera_label.imgtk = imgtk
                 self.camera_label.config(image=imgtk)
-        # Repeat update at 30 fps
         self.after(33, self.update_camera)
 
     def send_image_continuously(self):
-        while True:
-            ret, frame = self.cap.read()
-            if ret:
-                # Convert frame to bytes
-                encoded_frame = pickle.dumps(frame)
-                # Send size of the data first
-                self.client_socket.send(struct.pack("!I", len(encoded_frame)))
-                # Send encoded frame over socket
-                try:
+        """Send camera frames continuously to the server."""
+        try:
+            while True:
+                ret, frame = self.cap.read()
+                if ret:
+                    encoded_frame = pickle.dumps(frame)
+                    self.client_socket.send(struct.pack("!I", len(encoded_frame)))
                     self.client_socket.send(encoded_frame)
-                except ConnectionAbortedError as e:
-                    print("Connection aborted:", e)
-                    # Handle the error gracefully, e.g., attempt to reconnect
-                # Receive the sign from the server
-                sign = self.client_socket.recv(4096)  # Assuming the sign is sent as a string with max length 4096
-                # Process the received sign (gesture_label)
-                self.process_received_sign(sign)
-                # Uncomment the line below if you want to add a delay between sending frames
-                # time.sleep(0.1)
+                    sign = self.client_socket.recv(4096)
+                    self.process_received_sign(sign)
+        except (ConnectionResetError, ConnectionAbortedError) as e:
+            messagebox.showerror("Error", f"Connection error: {e}")
+            self.destroy()
 
     def destroy(self):
-        # Close the socket connection
+        """Close the socket connection and release the camera."""
         self.client_socket.close()
-        # Release the camera
         self.cap.release()
-        # Call the superclass destroy method
         super().destroy()
 
     def recognition_mode(self):
+        """Switch to recognition mode."""
         self.mode_var.set("Recognition")
 
     def translation_mode(self):
+        """Switch to translation mode."""
         self.mode_var.set("Translation")
 
     def process_received_sign(self, sign):
-        if sign:  # Check if the sign is not empty
-            print("Received sign:", sign.decode())  # Decode and print the sign
+        """Process the received sign."""
+        if sign:
+            print("Received sign:", sign.decode())
         else:
-            print("No sign recognized")  # Print a message indicating no sign was recognized
-
+            print("No sign recognized")
 
 if __name__ == "__main__":
     app = App()
-    print("Client connected to the server.")
     app.mainloop()

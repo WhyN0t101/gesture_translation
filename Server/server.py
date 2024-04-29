@@ -4,32 +4,36 @@ import socket
 import threading
 import struct
 from server_recognition import HandRecognition
+from concurrent.futures import ThreadPoolExecutor
 
 class Server:
-    def __init__(self, host, port, model_path):
+    def __init__(self, host, port, model_path, max_clients=5):
         self.host = host
         self.port = port
         self.model_path = model_path
         self.hand_recognition = HandRecognition(model_path)
         self.server_socket = None
         self.is_running = False
+        self.max_clients = max_clients
+        self.executor = ThreadPoolExecutor(max_workers=self.max_clients)
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(1)
+        self.server_socket.listen(5)
         self.is_running = True
         print(f"Server listening on {self.host}:{self.port}")
 
-        while self.is_running:
-            conn, addr = self.server_socket.accept()
-            print(f"Connected to {addr}")
+        try:
+            while self.is_running:
+                conn, addr = self.server_socket.accept()
+                print(f"Connected to {addr}")
 
-            # Handle client request in a separate thread
-            client_thread = threading.Thread(target=self.handle_client, args=(conn,))
-            client_thread.start()
+                self.executor.submit(self.handle_client, conn)
 
-        self.server_socket.close()
+        except Exception as e:
+            print(f"Error: {e}")
+            self.stop()
 
     def handle_client(self, conn):
         with conn:
@@ -58,16 +62,14 @@ class Server:
                     else:
                         conn.sendall(b'')  # Send an empty byte string or some default value
 
-            except ConnectionResetError:
-                print("Connection reset by peer")
-
-        conn.close()
-
+            except Exception as e:
+                print(f"Error handling client: {e}")
 
     def stop(self):
         self.is_running = False
         if self.server_socket:
             self.server_socket.close()
+        self.executor.shutdown()
 
 if __name__ == "__main__":
     HOST = '127.0.0.1'  # Change this to your server's IP address
@@ -75,13 +77,5 @@ if __name__ == "__main__":
     MODEL_PATH = r'C:\gesture_recognition_model_with_augmentation.h5'  # Change this to the path of your hand recognition model
 
     server = Server(HOST, PORT, MODEL_PATH)
-    server_thread = threading.Thread(target=server.start)
-    server_thread.start()
-
-    try:
-        server_thread.join()
-    except KeyboardInterrupt:
-        server.stop()
-        server_thread.join()
-
+    server.start()
     print("Server stopped.")
