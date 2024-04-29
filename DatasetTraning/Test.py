@@ -1,3 +1,4 @@
+# Import necessary libraries
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
@@ -7,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 # Define constants
 IMAGE_SIZE = (100, 100)
 BATCH_SIZE = 64
-NUM_CLASSES = 36  # 10 digits + 26 letters
+NUM_CLASSES = 37  # 10 digits + 26 letters
 LEARNING_RATE = 0.002
 EPOCHS = 64
 
@@ -24,16 +25,16 @@ train_datagen = ImageDataGenerator(
 )
 
 # Load training and validation datasets using flow_from_directory
-train_generator = train_datagen.flow_from_directory(
-    r'PathToTraining',
+train_data_generator = train_datagen.flow_from_directory(
+    'PathToTraining',
     target_size=IMAGE_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='categorical',
     subset='training'
 )
 
-validation_generator = train_datagen.flow_from_directory(
-    r'PathToValidation',
+validation_data_generator = train_datagen.flow_from_directory(
+    'PathToValidation',
     target_size=IMAGE_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='categorical',
@@ -61,11 +62,11 @@ model.compile(optimizer=optimizer,
 
 # Train the model
 history = model.fit(
-    train_generator,
-    steps_per_epoch=train_generator.samples // BATCH_SIZE,
+    train_data_generator,
+    steps_per_epoch=train_data_generator.samples // BATCH_SIZE,
     epochs=EPOCHS,
-    validation_data=validation_generator,
-    validation_steps=validation_generator.samples // BATCH_SIZE
+    validation_data=validation_data_generator,
+    validation_steps=validation_data_generator.samples // BATCH_SIZE
 )
 
 # Save the trained model
