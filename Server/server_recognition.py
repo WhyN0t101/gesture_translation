@@ -1,7 +1,7 @@
 import cv2
-import mediapipe as mp
 import numpy as np
-from tensorflow.keras.models import load_model
+import tensorflow as tf
+import mediapipe as mp
 
 
 class HandRecognition:
@@ -9,8 +9,7 @@ class HandRecognition:
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands()
-        self.model = load_model(model_path)
-        # Define mapping between label indices and gesture labels
+        self.model = tf.keras.models.load_model(model_path)
         self.labels_mapping = {
             0: "0", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9",
             10: "A", 11: "B", 12: "C", 13: "D", 14: "E", 15: "F", 16: "G", 17: "H", 18: "I", 19: "J",
@@ -24,14 +23,9 @@ class HandRecognition:
         self.frame_buffer_size = 10
         self.timeout_duration = 5
         self.frames_since_last_detection = 0
+        self.skip_frames = 1  # Skip every 1 frames
 
     def is_hand_closed(self, hand_landmarks) -> bool:
-        """
-        Check if the hand is closed.
-
-        :param hand_landmarks: The hand landmarks.
-        :return: True if the hand is closed, False otherwise.
-        """
         thumb_tip = np.array([hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP].x,
                               hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP].y])
         index_tip = np.array([hand_landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP].x,
@@ -39,13 +33,20 @@ class HandRecognition:
         distance = np.linalg.norm(thumb_tip - index_tip)
         return distance < 0.02
 
-    def process_frame(self, frame: np.ndarray) -> tuple[str | None, np.ndarray]:
-        """
-        Process a frame and recognize hand gestures.
+    def process_hand_landmarks(self, hand_landmarks, frame):
+        if self.is_hand_closed(hand_landmarks):
+            gesture_label = "closed"
+        else:
+            frame_resized = cv2.resize(frame, (100, 100))  # Use a smaller input image size
+            frame_normalized = frame_resized / 255.0
+            frame_reshaped = np.expand_dims(frame_normalized, axis=0)
+            prediction = self.model.predict(frame_reshaped)
+            gesture_index = np.argmax(prediction)
+            gesture_label = self.labels_mapping[gesture_index]
+        self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+        return gesture_label, frame
 
-        :param frame: The frame to process.
-        :return: A tuple containing the recognized gesture label and the processed frame.
-        """
+    def process_frame(self, frame: np.ndarray) -> tuple[str | None, np.ndarray]:
         processed_frame = frame.copy()
         results = self.hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
@@ -54,22 +55,9 @@ class HandRecognition:
         if len(self.frame_buffer) > self.frame_buffer_size:
             self.frame_buffer.pop(0)
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                if self.is_hand_closed(hand_landmarks):
-                    gesture_label = "closed"
-                else:
-                    frame_resized = cv2.resize(frame, (100, 100))
-                    frame_normalized = frame_resized / 255.0
-                    frame_reshaped = np.expand_dims(frame_normalized, axis=0)
-                    prediction = self.model.predict(frame_reshaped)
-                    gesture_index = np.argmax(prediction)
-                    gesture_label = self.labels_mapping[gesture_index]
-                self.mp_drawing.draw_landmarks(processed_frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-
-                # Reset frames since last detection
-                self.frames_since_last_detection = 0
-                return gesture_label, processed_frame
+        if results.multi_hand_landmarks:  # Corrected attribute name
+            for hand_landmarks in results.multi_hand_landmarks:  # Corrected attribute name
+                return self.process_hand_landmarks(hand_landmarks, processed_frame)
 
         # Increment frames since last detection
         self.frames_since_last_detection += 1
@@ -82,19 +70,10 @@ class HandRecognition:
         # Process frames in buffer if hand is missing
         if not results.multi_hand_landmarks and self.frame_buffer:
             for buffered_frame in reversed(self.frame_buffer):
-                results = self.hands.process(cv2.cvtColor(buffered_frame, cv2.COLOR_BGR2RGB))
-                if results.multi_hand_landmarks:
-                    for hand_landmarks in results.multi_hand_landmarks:
-                        if self.is_hand_closed(hand_landmarks):
-                            gesture_label = "closed"
-                        else:
-                            frame_resized = cv2.resize(buffered_frame, (100, 100))
-                            frame_normalized = frame_resized / 255.0
-                            frame_reshaped = np.expand_dims(frame_normalized, axis=0)
-                            prediction = self.model.predict(frame_reshaped)
-                            gesture_index = np.argmax(prediction)
-                            gesture_label = self.labels_mapping[gesture_index]
-                        self.mp_drawing.draw_landmarks(processed_frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-                        return gesture_label, processed_frame
+                if self.frames_since_last_detection % self.skip_frames == 0:
+                    results = self.hands.process(cv2.cvtColor(buffered_frame, cv2.COLOR_BGR2RGB))
+                    if results.multi_hand_landmarks:  # Corrected attribute name
+                        for hand_landmarks in results.multi_hand_landmarks:  # Corrected attribute name
+                            return self.process_hand_landmarks(hand_landmarks, buffered_frame)
 
         return None, processed_frame
