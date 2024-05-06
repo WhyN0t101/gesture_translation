@@ -10,7 +10,7 @@ IMAGE_SIZE = (100, 100)
 BATCH_SIZE = 64
 NUM_CLASSES = 37  # 10 digits + 26 letters
 LEARNING_RATE = 0.002
-EPOCHS = 64
+EPOCHS = 32
 
 # Create ImageDataGenerator with data augmentation
 train_datagen = ImageDataGenerator(
@@ -25,16 +25,16 @@ train_datagen = ImageDataGenerator(
 )
 
 # Load training and validation datasets using flow_from_directory
-train_data_generator = train_datagen.flow_from_directory(
-    'PathToTraining',
+train_generator = train_datagen.flow_from_directory(
+    r'C:\DataSet\Train',
     target_size=IMAGE_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='categorical',
     subset='training'
 )
 
-validation_data_generator = train_datagen.flow_from_directory(
-    'PathToValidation',
+validation_generator = train_datagen.flow_from_directory(
+    r'C:\DataSet\Val',
     target_size=IMAGE_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='categorical',
@@ -60,14 +60,17 @@ model.compile(optimizer=optimizer,
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-# Train the model
+#Train the model
 history = model.fit(
-    train_data_generator,
-    steps_per_epoch=train_data_generator.samples // BATCH_SIZE,
+    train_generator,
+    steps_per_epoch=train_generator.samples // BATCH_SIZE,
     epochs=EPOCHS,
-    validation_data=validation_data_generator,
-    validation_steps=validation_data_generator.samples // BATCH_SIZE
+    validation_data=validation_generator,
+    validation_steps=validation_generator.samples // BATCH_SIZE
 )
+# Train the model
+
+
 
 # Save the trained model
 model.save('gesture_recognition_model_with_augmentation.h5')

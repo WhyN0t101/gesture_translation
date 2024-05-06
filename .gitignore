@@ -175,4 +175,4 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 
-gesture_recognition_model_with_augmentation
+gesture_recognition_model_with_augmentation.h5

@@ -3,9 +3,9 @@ import shutil
 import random
 
 # Define paths to your dataset folders
-dataset_path = r'PATHTOImages'
-train_path = r'PathToTraining'
-val_path = r'PathToValidation'
+dataset_path = r'C:\DataSet\Final'
+train_path = r'C:\DataSet\Train'
+val_path = r'C:\DataSet\Val'
 
 # Create training and validation directories if they don't exist
 os.makedirs(train_path, exist_ok=True)
