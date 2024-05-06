@@ -63,6 +63,8 @@ class Server:
                     else:
                         conn.sendall(b'')  # Send an empty byte string or some default value
 
+            except BrokenPipeError:
+                print("Client disconnected.")
             except Exception as e:
                 print(f"Error handling client: {e}")
 
