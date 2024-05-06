@@ -1,5 +1,3 @@
-# Import necessary libraries
-import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
@@ -8,7 +6,7 @@ from tensorflow.keras.optimizers import Adam
 # Define constants
 IMAGE_SIZE = (100, 100)
 BATCH_SIZE = 64
-NUM_CLASSES = 37  # 10 digits + 26 letters
+NUM_CLASSES = 36  # 10 digits + 26 letters
 LEARNING_RATE = 0.002
 EPOCHS = 64
 

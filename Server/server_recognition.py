@@ -3,13 +3,16 @@ import numpy as np
 import tensorflow as tf
 import mediapipe as mp
 
-
 class HandRecognition:
     def __init__(self, model_path: str):
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands()
+
+        # Load the model
         self.model = tf.keras.models.load_model(model_path)
+
+        # Define the labels mapping
         self.labels_mapping = {
             0: "0", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9",
             10: "A", 11: "B", 12: "C", 13: "D", 14: "E", 15: "F", 16: "G", 17: "H", 18: "I", 19: "J",
@@ -19,11 +22,13 @@ class HandRecognition:
             47: "k", 48: "l", 49: "m", 50: "n", 51: "o", 52: "p", 53: "q", 54: "r", 55: "s", 56: "t",
             57: "u", 58: "v", 59: "w", 60: "x", 61: "y", 62: "z"
         }
+
+        # Initialize other variables
         self.frame_buffer = []
         self.frame_buffer_size = 10
         self.timeout_duration = 5
         self.frames_since_last_detection = 0
-        self.skip_frames = 1  # Skip every 1 frames
+        self.skip_frames = 1
 
     def is_hand_closed(self, hand_landmarks) -> bool:
         thumb_tip = np.array([hand_landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP].x,
@@ -40,9 +45,12 @@ class HandRecognition:
             frame_resized = cv2.resize(frame, (100, 100))  # Use a smaller input image size
             frame_normalized = frame_resized / 255.0
             frame_reshaped = np.expand_dims(frame_normalized, axis=0)
+
+            # Pass the preprocessed frame through the model to get predictions
             prediction = self.model.predict(frame_reshaped)
             gesture_index = np.argmax(prediction)
             gesture_label = self.labels_mapping[gesture_index]
+
         self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
         return gesture_label, frame
 
