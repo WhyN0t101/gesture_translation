@@ -6,9 +6,8 @@ import struct
 from server_recognition import HandRecognition
 from concurrent.futures import ThreadPoolExecutor
 
-
 class Server:
-    def __init__(self, host, port, model_path, max_clients=5):
+    def __init__(self, host, port, model_path, max_clients=5, frame_buffer_size=10, timeout_duration=5, skip_frames=1):
         self.host = host
         self.port = port
         self.model_path = model_path
@@ -17,6 +16,9 @@ class Server:
         self.is_running = False
         self.max_clients = max_clients
         self.executor = ThreadPoolExecutor(max_workers=self.max_clients)
+        self.frame_buffer_size = frame_buffer_size
+        self.timeout_duration = timeout_duration
+        self.skip_frames = skip_frames
 
     def start(self):
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,7 +75,6 @@ class Server:
         if self.server_socket:
             self.server_socket.close()
         self.executor.shutdown()
-
 
 if __name__ == "__main__":
     HOST = '127.0.0.1'  # Change this to your server's IP address

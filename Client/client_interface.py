@@ -7,6 +7,7 @@ from client_socket import ClientSocket
 import threading
 import struct
 
+
 class App(tk.Tk):
     """Main application class for the client-side GUI."""
 
@@ -14,6 +15,7 @@ class App(tk.Tk):
         """Initialize the application."""
         super().__init__(*args, **kwargs)
 
+        self.running = True  # Define the running attribute
         self.title("Gesture Translation and Recognition")
         self.geometry("800x600")
         self.configure(bg="darkgrey")
@@ -21,6 +23,11 @@ class App(tk.Tk):
         # Create label for displaying camera feed
         self.camera_label = tk.Label(self, bg="white")
         self.camera_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Gesture text label
+        self.gesture_text = tk.StringVar()
+        self.gesture_label = ttk.Label(self, textvariable=self.gesture_text)
+        self.gesture_label.place(relx=0.5, rely=0.1, anchor="center")
 
         # Create mode buttons
         self.mode_var = tk.StringVar(value="Recognition")
@@ -53,7 +60,7 @@ class App(tk.Tk):
         self.update_camera()
 
         # Bind the destroy event to close the socket connection
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def update_camera(self):
         """Update the camera feed."""
@@ -70,7 +77,7 @@ class App(tk.Tk):
     def send_image_continuously(self):
         """Send camera frames continuously to the server."""
         try:
-            while True:
+            while self.running:
                 ret, frame = self.cap.read()
                 if ret:
                     encoded_frame = pickle.dumps(frame)
@@ -78,15 +85,20 @@ class App(tk.Tk):
                     self.client_socket.send(encoded_frame)
                     sign = self.client_socket.recv(4096)
                     self.process_received_sign(sign)
+                else:
+                    # Send a default or empty value to indicate no gesture was recognized
+                    self.client_socket.send(struct.pack("!I", 0))
+                    self.client_socket.send(b'')
         except (ConnectionResetError, ConnectionAbortedError) as e:
             messagebox.showerror("Error", f"Connection error: {e}")
             self.destroy()
 
-    def destroy(self):
-        """Close the socket connection and release the camera."""
+    def on_close(self):
+        """Handle window close event."""
+        self.running = False  # Set running to False to stop the send_image_continuously thread
         self.client_socket.close()
         self.cap.release()
-        super().destroy()
+        self.destroy()
 
     def recognition_mode(self):
         """Switch to recognition mode."""
@@ -99,9 +111,12 @@ class App(tk.Tk):
     def process_received_sign(self, sign):
         """Process the received sign."""
         if sign:
-            print("Received sign:", sign.decode())
+            self.gesture_text.set(sign.decode())
+            print(sign.decode())
         else:
+            self.gesture_text.set("No sign recognized")
             print("No sign recognized")
+
 
 if __name__ == "__main__":
     app = App()

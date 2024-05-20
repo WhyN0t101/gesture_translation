@@ -77,5 +77,4 @@ class HandRecognition:
                         for hand_landmarks in results.multi_hand_landmarks:
                             return self.process_hand_landmarks(hand_landmarks, processed_frame)
 
-        return None, processed_frame
-
+        return "No hand detected", processed_frame
