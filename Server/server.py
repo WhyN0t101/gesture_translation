@@ -42,12 +42,13 @@ class Server:
         with conn:
             try:
                 while True:
-                    # Receive size of the data first
                     data_size_bytes = conn.recv(4)
                     if not data_size_bytes:
                         break
                     data_size = struct.unpack("!I", data_size_bytes)[0]
-                    # Receive encoded frame over socket
+                    if data_size == 0:
+                        conn.sendall(b'No hand detected')
+                        continue
                     data = b''
                     while len(data) < data_size:
                         packet = conn.recv(data_size - len(data))
@@ -56,14 +57,15 @@ class Server:
                         data += packet
                     if len(data) < data_size:
                         break
-                    frame = pickle.loads(data)
-                    gesture_label, processed_frame = self.hand_recognition.process_frame(frame)
-
-                    # Send back the recognized gesture label
-                    if gesture_label is not None:
-                        conn.sendall(gesture_label.encode())
+                    if data:
+                        frame = pickle.loads(data)
+                        gesture_label, processed_frame = self.hand_recognition.process_frame(frame)
+                        if gesture_label is not None:
+                            conn.sendall(gesture_label.encode())
+                        else:
+                            conn.sendall(b'No gesture recognized')
                     else:
-                        conn.sendall(b'')  # Send an empty byte string or some default value
+                        conn.sendall(b'No gesture recognized')
 
             except BrokenPipeError:
                 print("Client disconnected.")
@@ -77,9 +79,9 @@ class Server:
         self.executor.shutdown()
 
 if __name__ == "__main__":
-    HOST = '127.0.0.1'  # Change this to your server's IP address
-    PORT = 12345  # Change this to the port you want to use
-    MODEL_PATH = r'C:\gesture_recognition_model_with_augmentation.h5'  # Change this to the path of your hand recognition model
+    HOST = '127.0.0.1'
+    PORT = 12345
+    MODEL_PATH = r'C:\gesture_recognition_model_with_augmentation.h5'
 
     server = Server(HOST, PORT, MODEL_PATH)
     server.start()
