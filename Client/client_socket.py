@@ -1,5 +1,6 @@
 import socket
 
+
 class ClientSocket:
     """A class for handling client-side socket connections."""
 

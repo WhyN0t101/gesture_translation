@@ -1,10 +1,9 @@
-import cv2
 import pickle
 import socket
-import threading
 import struct
 from concurrent.futures import ThreadPoolExecutor
 from server_recognition import HandRecognition
+
 
 class Server:
     """Server class for handling client connections and processing frames."""
@@ -17,7 +16,7 @@ class Server:
             host (str): The host address to bind the server socket to.
             port (int): The port number to bind the server socket to.
             model_path (str): The path to the gesture recognition model file.
-            max_clients (int, optional): The maximum number of clients that can be connected simultaneously. Defaults to 5.
+            max_clients (int, optional): The maximum number of clients that can be connected simultaneously.
             frame_buffer_size (int, optional): The size of the frame buffer for each client. Defaults to 10.
             timeout_duration (int, optional): The timeout duration for receiving data from a client. Defaults to 5.
             skip_frames (int, optional): The number of frames to skip between processing. Defaults to 1.
@@ -104,6 +103,7 @@ class Server:
         if self.server_socket:
             self.server_socket.close()
         self.executor.shutdown()
+
 
 if __name__ == "__main__":
     HOST = '127.0.0.1'
