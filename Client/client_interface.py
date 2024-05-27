@@ -7,6 +7,8 @@ import threading
 import struct
 from client_socket import ClientSocket
 import mediapipe as mp
+import time
+
 
 class App(tk.Tk):
     """Main application class for the client-side GUI."""
@@ -16,6 +18,8 @@ class App(tk.Tk):
         super().__init__(*args, **kwargs)
 
         self.running = True
+        self.current_mode = "Recognition"
+        self.server_connected = False
         self.title("Gesture Translation and Recognition")
         self.geometry("800x600")
         self.configure(bg="darkgrey")
@@ -38,19 +42,15 @@ class App(tk.Tk):
             messagebox.showerror("Error", "Failed to open camera.")
             self.destroy()
 
-        self.client_socket = ClientSocket()
-        if not self.client_socket.is_socket_open():
-            messagebox.showerror("Error", "Failed to connect to the server.")
-            self.destroy()
-
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands()
 
         self.camera_lock = threading.Lock()
-        self.send_thread = threading.Thread(target=self.send_image_continuously)
-        self.send_thread.daemon = True
-        self.send_thread.start()
+
         self.update_camera()
+
+        self.connect_to_server_thread = threading.Thread(target=self.connect_to_server)
+        self.connect_to_server_thread.start()
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -67,10 +67,25 @@ class App(tk.Tk):
                     self.camera_label.config(image=imgtk)
             self.after(33, self.update_camera)
 
+    def connect_to_server(self):
+        """Continuously attempt to connect to the server."""
+        while self.running:
+            if not self.server_connected:
+                try:
+                    self.client_socket = ClientSocket()
+                    if self.client_socket.is_socket_open():
+                        print("Client connected to the server.")
+                        self.server_connected = True
+                        self.send_thread = threading.Thread(target=self.send_image_continuously)
+                        self.send_thread.start()
+                except Exception:
+                    self.server_connected = False
+            time.sleep(5)  # Wait before trying to reconnect
+
     def send_image_continuously(self):
         """Send camera frames continuously to the server."""
-        try:
-            while self.running:
+        while self.running and self.server_connected:
+            try:
                 ret, frame = self.cap.read()
                 if ret:
                     cropped_frame = self.crop_hand_region(frame)
@@ -88,13 +103,13 @@ class App(tk.Tk):
                     self.client_socket.send(b'')
                     sign = self.client_socket.recv(4096)
                     self.process_received_sign(sign)
-        except (ConnectionResetError, ConnectionAbortedError) as e:
-            if self.running:
-                messagebox.showerror("Error", f"Connection error: {e}")
-                self.on_close()
-        except Exception as e:
-            messagebox.showerror("Error", f"Unexpected error: {e}")
-            self.on_close()
+            except (ConnectionResetError, ConnectionAbortedError):
+                self.server_connected = False
+                self.client_socket.close()
+            except Exception as e:
+                if self.running:
+                    messagebox.showerror("Error", f"Unexpected error: {e}")
+                    self.on_close()
 
     def crop_hand_region(self, frame):
         """Detect hand landmarks and crop the hand region from the frame."""
@@ -116,17 +131,19 @@ class App(tk.Tk):
     def on_close(self):
         """Handle window close event."""
         self.running = False
-        self.client_socket.close()
+        if self.server_connected:
+            self.send_thread.join()
+            self.client_socket.close()
         self.cap.release()
         self.destroy()
 
     def recognition_mode(self):
         """Switch to recognition mode."""
-        self.mode_var.set("Recognition")
+        self.current_mode = "Recognition"
 
     def translation_mode(self):
         """Switch to translation mode."""
-        self.mode_var.set("Translation")
+        self.current_mode = "Translation"
 
     def process_received_sign(self, sign):
         """Process the received sign."""
@@ -136,6 +153,7 @@ class App(tk.Tk):
         else:
             self.gesture_text.set("No sign recognized")
             print("No sign recognized")
+
 
 if __name__ == "__main__":
     app = App()
