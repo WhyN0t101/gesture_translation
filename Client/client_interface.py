@@ -24,18 +24,32 @@ class App(tk.Tk):
         self.geometry("800x600")
         self.configure(bg="darkgrey")
 
-        self.camera_label = tk.Label(self, bg="white")
-        self.camera_label.place(relx=0.5, rely=0.5, anchor="center")
+        self.main_frame = tk.Frame(self, bg="darkgrey")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.image_frame = tk.Frame(self.main_frame, bg="white")
+        self.image_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.button_frame = tk.Frame(self.main_frame, bg="lightgrey")
+        self.button_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.camera_label = tk.Label(self.image_frame)
+        self.camera_label.pack(fill=tk.BOTH, expand=True)
 
         self.gesture_text = tk.StringVar()
-        self.gesture_label = ttk.Label(self, textvariable=self.gesture_text)
-        self.gesture_label.place(relx=0.5, rely=0.1, anchor="center")
+        self.gesture_label = ttk.Label(self.button_frame, textvariable=self.gesture_text)
+        self.gesture_label.pack(side=tk.TOP, pady=10)
 
-        self.mode_var = tk.StringVar(value="Recognition")
-        self.recognition_button = ttk.Button(self, text="Recognition Mode", command=self.recognition_mode)
-        self.recognition_button.place(relx=0.2, rely=0.9, anchor="center")
-        self.translation_button = ttk.Button(self, text="Translation Mode", command=self.translation_mode)
-        self.translation_button.place(relx=0.8, rely=0.9, anchor="center")
+        self.style = ttk.Style()
+        self.style.configure("Large.TButton", font=("Helvetica", 14), padding=10)
+
+        self.recognition_button = ttk.Button(self.button_frame, text="Recognition Mode", command=self.recognition_mode,
+                                             style="Large.TButton")
+        self.recognition_button.pack(side=tk.LEFT, padx=20, pady=10, expand=True)
+
+        self.translation_button = ttk.Button(self.button_frame, text="Translation Mode", command=self.translation_mode,
+                                             style="Large.TButton")
+        self.translation_button.pack(side=tk.RIGHT, padx=20, pady=10, expand=True)
 
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
