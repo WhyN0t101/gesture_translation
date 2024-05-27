@@ -13,15 +13,23 @@ import time
 class App(tk.Tk):
     """Main application class for the client-side GUI."""
 
+    TITLE = "Gesture Translation and Recognition"
+    STYLES = {
+        "button": {
+            "font": ("Helvetica", 14),
+            "padding": 10
+        }
+    }
+
     def __init__(self, *args, **kwargs):
         """Initialize the application."""
         super().__init__(*args, **kwargs)
 
         self.running = True
-        self.current_mode = "Recognition"
+        self.current_mode = Mode.RECOGNITION
         self.server_connected = False
-        self.title("Gesture Translation and Recognition")
-        self.geometry("800x600")
+        self.title(self.TITLE)
+        self.geometry("600x640")
         self.configure(bg="darkgrey")
 
         self.main_frame = tk.Frame(self, bg="darkgrey")
@@ -39,9 +47,6 @@ class App(tk.Tk):
         self.gesture_text = tk.StringVar()
         self.gesture_label = ttk.Label(self.button_frame, textvariable=self.gesture_text)
         self.gesture_label.pack(side=tk.TOP, pady=10)
-
-        self.style = ttk.Style()
-        self.style.configure("Large.TButton", font=("Helvetica", 14), padding=10)
 
         self.recognition_button = ttk.Button(self.button_frame, text="Recognition Mode", command=self.recognition_mode,
                                              style="Large.TButton")
@@ -73,12 +78,15 @@ class App(tk.Tk):
         if self.running:
             ret, frame = self.cap.read()
             if ret:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(frame_rgb)
-                imgtk = ImageTk.PhotoImage(image=img)
-                with self.camera_lock:
-                    self.camera_label.imgtk = imgtk
-                    self.camera_label.config(image=imgtk)
+                try:
+                    with self.camera_lock:
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        img = Image.fromarray(frame_rgb)
+                        imgtk = ImageTk.PhotoImage(image=img)
+                        self.camera_label.imgtk = imgtk
+                        self.camera_label.config(image=imgtk)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to update camera: {e}")
             self.after(33, self.update_camera)
 
     def connect_to_server(self):
@@ -92,7 +100,8 @@ class App(tk.Tk):
                         self.server_connected = True
                         self.send_thread = threading.Thread(target=self.send_image_continuously)
                         self.send_thread.start()
-                except Exception:
+                except Exception as e:
+                    print(f"Error connecting to server: {e}")
                     self.server_connected = False
             time.sleep(5)  # Wait before trying to reconnect
 
@@ -117,7 +126,8 @@ class App(tk.Tk):
                     self.client_socket.send(b'')
                     sign = self.client_socket.recv(4096)
                     self.process_received_sign(sign)
-            except (ConnectionResetError, ConnectionAbortedError):
+            except (ConnectionResetError, ConnectionAbortedError) as e:
+                print(f"Connection error: {e}")
                 self.server_connected = False
                 self.client_socket.close()
             except Exception as e:
@@ -153,20 +163,24 @@ class App(tk.Tk):
 
     def recognition_mode(self):
         """Switch to recognition mode."""
-        self.current_mode = "Recognition"
+        self.current_mode = Mode.RECOGNITION
 
     def translation_mode(self):
         """Switch to translation mode."""
-        self.current_mode = "Translation"
+        self.current_mode = Mode.TRANSLATION
 
     def process_received_sign(self, sign):
         """Process the received sign."""
         if sign:
             self.gesture_text.set(sign.decode())
-            print(sign.decode())
         else:
             self.gesture_text.set("No sign recognized")
-            print("No sign recognized")
+
+
+class Mode:
+    """Enum-like class to represent application modes."""
+    RECOGNITION = 1
+    TRANSLATION = 2
 
 
 if __name__ == "__main__":
