@@ -5,11 +5,10 @@
 This repository contains the source code for a Gesture Translation and Recognition.
 ## Prerequisites
 
-Before you begin, make sure you have the following prerequisites installed:
 
 
 ## Features
-
+Translates Signs To Text
 
 
 ## Installation
